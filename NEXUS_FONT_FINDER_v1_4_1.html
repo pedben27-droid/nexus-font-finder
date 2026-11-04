@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NEXUS FONT FINDER v1.4 DEEP ANALYSIS</title>
+<style>
+:root{--bg:#0d1015;--panel:#171c24;--panel2:#202733;--line:#303a49;--txt:#edf1f7;--muted:#9ba8b8;--gold:#d5ad70;--green:#79d6a5;--red:#ff8989}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.5 Inter,"Segoe UI",Tahoma,sans-serif}
+header{padding:22px 28px;background:#131820;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:20px}
+h1{font-size:25px;letter-spacing:.09em;margin:0}header p{margin:4px 0 0;color:var(--muted)}.version{color:var(--gold);font-size:12px;border:1px solid #796342;padding:5px 9px;border-radius:20px}
+main{max-width:1600px;margin:auto;padding:20px;display:grid;grid-template-columns:350px minmax(0,1fr);gap:16px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0;margin-bottom:14px}
+h2{font-size:15px;margin:0 0 12px;color:#f4d8ad}h3{font-size:13px;margin:0 0 8px;color:#dce3ed}
+label{display:block;color:var(--muted);font-size:12px;margin:11px 0 5px}
+input,select,textarea{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--line);background:#10151c;color:var(--txt);font:inherit}
+input[type=checkbox]{width:auto}input[type=range]{padding:0}button{border:1px solid transparent;background:var(--gold);color:#1a1712;border-radius:8px;padding:9px 12px;font-weight:700;cursor:pointer;margin:7px 5px 0 0}
+button.secondary{background:#303b4a;color:var(--txt);border-color:#455163}button.danger{background:#4b2a30;color:#ffd9dc;border-color:#75414a}button:disabled{opacity:.45;cursor:not-allowed}
+.small{font-size:11px;color:var(--muted)}.status{white-space:pre-wrap;color:var(--muted);background:#10151c;border:1px solid var(--line);padding:9px;border-radius:8px;margin-top:10px}.progress-wrap{display:none;margin-top:10px;padding:11px;background:#10151c;border:1px solid var(--line);border-radius:10px}.progress-top{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:8px}.progress-title{font-weight:700;color:var(--txt)}.progress-pct{font-size:20px;font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums}.progress-track{height:9px;border-radius:20px;background:#303947;overflow:hidden}.progress-fill{height:100%;width:0%;border-radius:20px;background:linear-gradient(90deg,#b58a4d,#f0d09a);transition:width .18s ease}.progress-sub{font-size:11px;color:var(--muted);margin-top:7px}.progress-wrap.busy .progress-fill{background:linear-gradient(90deg,#b58a4d,#f0d09a)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.row>*{flex:1}.statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:#10151c;border:1px solid var(--line);padding:9px;border-radius:9px}.stat b{display:block;font-size:20px;color:var(--gold)}
+.workspace{display:grid;grid-template-columns:1fr 1fr;gap:10px}.preview{background:#f5f5f3;color:#111;min-height:150px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:12px;overflow:hidden}.preview canvas,.preview img{max-width:100%;max-height:240px;object-fit:contain}.preview .empty{color:#555}
+#results{display:grid;gap:9px;margin-top:12px}.candidate{background:#111720;border:1px solid var(--line);border-radius:11px;padding:12px;display:grid;grid-template-columns:34px minmax(0,1fr) 100px;gap:10px;align-items:center}.rank{color:var(--gold);font-weight:800;font-size:17px}.fname{font-weight:700;overflow-wrap:anywhere}.meta{color:var(--muted);font-size:11px}.sample{font-size:29px;line-height:1.35;overflow-wrap:anywhere;color:#fff;margin-top:5px}.score{font-size:20px;color:var(--green);font-weight:800;text-align:right}.candidate.active{border-color:var(--gold);background:#252a30}.candidate button{font-size:11px;padding:5px 8px}
+.dbitem{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);align-items:center}.dbitem span{overflow-wrap:anywhere}.tag{font-size:10px;color:#e6c998;border:1px solid #66563d;border-radius:20px;padding:2px 7px}
+table{width:100%;border-collapse:collapse;font-size:12px}td,th{text-align:left;padding:8px;border-bottom:1px solid var(--line)}th{color:var(--muted)}
+details{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}summary{cursor:pointer;color:#e6c998}
+@media(max-width:980px){main{grid-template-columns:1fr}.workspace{grid-template-columns:1fr}}@media(max-width:550px){header{padding:16px}main{padding:10px}.candidate{grid-template-columns:25px 1fr 65px}.score{font-size:16px}}
+</style></head>
+<body>
+<header><div><h1>NEXUS FONT FINDER</h1><p>Advanced Artwork-to-Font Matching · Local Font Database</p></div><span class="version">VERSION 1.4 · DEEP ANALYSIS</span></header>
+<main>
+<aside>
+ <section class="panel">
+  <h2>01 / FONT DATABASE</h2>
+  <div class="statgrid"><div class="stat"><b id="dbCount">0</b><span class="small">ฟอนต์ในฐานข้อมูล</span></div><div class="stat"><b id="favCount">0</b><span class="small">รายการโปรด</span></div><div class="stat"><b id="dbSize">0</b><span class="small">MB โดยประมาณ</span></div></div>
+  <label>เพิ่มไฟล์ฟอนต์ TTF / OTF / WOFF / WOFF2</label><input id="fontInput" type="file" multiple accept=".ttf,.otf,.woff,.woff2">
+  <label>เพิ่มฟอนต์จากโฟลเดอร์</label><input id="folderInput" type="file" webkitdirectory multiple>
+  <div class="row"><button id="exportDb" class="secondary">ส่งออกฐานข้อมูล</button><button id="importDb" class="secondary">นำเข้าฐานข้อมูล</button></div><input id="dbFile" type="file" accept=".json" hidden>
+  <div id="dbList" style="max-height:210px;overflow:auto;margin-top:8px"></div>
+  <div class="small">จัดเก็บใน IndexedDB ของเบราว์เซอร์บนเครื่องนี้ ไม่ส่งไฟล์ขึ้นเซิร์ฟเวอร์ แนะนำส่งออก JSON สำรองเป็นระยะ</div>
+  <div id="dbProgress" class="progress-wrap"><div class="progress-top"><span id="dbProgressTitle" class="progress-title">กำลังโหลดฐานข้อมูล...</span><strong id="dbProgressPct" class="progress-pct">0%</strong></div><div class="progress-track"><div id="dbProgressFill" class="progress-fill"></div></div><div id="dbProgressSub" class="progress-sub">เตรียมระบบ</div></div><div id="dbStatus" class="status">กำลังตรวจสอบฐานข้อมูล...</div>
+ </section>
+ <section class="panel">
+  <h2>02 / ARTWORK ANALYSIS</h2>
+  <label>นำเข้าภาพอ้างอิง</label><input id="artInput" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml">
+  <div class="small">แนะนำ PNG ความละเอียดสูง พื้นหลังเรียบ ตัวอักษรคมชัด และไม่เอียง</div>
+  <label>ข้อความใน Artwork (กรอกให้ตรงทุกตัว)</label><textarea id="targetText" rows="2" placeholder="พิมพ์ข้อความตาม Artwork รวมตัวพิมพ์ใหญ่/เล็ก เว้นวรรค และเครื่องหมาย"></textarea>
+  <label>ภาษา/รูปแบบ</label><select id="lang"><option value="auto">อัตโนมัติ / ไทย + อังกฤษ</option><option value="th">ภาษาไทย</option><option value="en">ภาษาอังกฤษ / ตัวเลข</option></select>
+  <label>ความเข้มเกณฑ์แปลงภาพ: <span id="thresholdVal">150</span></label><input id="threshold" type="range" min="30" max="235" value="150">
+  <label>พื้นที่ตัดขอบ (Padding) <span class="small">ใช้ตัดพื้นที่ว่างรอบตัวอักษร</span></label><input id="padding" type="range" min="0" max="30" value="5">
+  <label>ตัวอย่างข้อความที่ใช้เทียบ</label><input id="previewSize" type="range" min="24" max="100" value="64">
+  <div class="row"><label style="flex:0"><input type="checkbox" id="invert"> กลับสีภาพ</label><label style="flex:0"><input type="checkbox" id="ignoreSpaces" checked> ไม่คิดช่องว่าง</label></div>
+  <button id="analyzeBtn">วิเคราะห์และค้นหาฟอนต์</button><button id="resetArt" class="secondary">ล้างภาพ</button>
+  <div id="searchProgress" class="progress-wrap"><div class="progress-top"><span id="searchProgressTitle" class="progress-title">กำลังค้นหาฟอนต์...</span><strong id="searchProgressPct" class="progress-pct">0%</strong></div><div class="progress-track"><div id="searchProgressFill" class="progress-fill"></div></div><div id="searchProgressSub" class="progress-sub">กำลังเตรียมการวิเคราะห์</div></div><div id="analysisStatus" class="status">รอภาพ Artwork และข้อความอ้างอิง</div>
+ </section>
+</aside>
+<section>
+ <section class="panel">
+  <h2>03 / VISUAL COMPARISON</h2>
+  <div class="workspace">
+   <div><h3>Artwork Reference</h3><div id="artView" class="preview"><span class="empty">ยังไม่ได้เลือกภาพ</span></div></div>
+   <div><h3>Selected Font Preview</h3><div id="fontView" class="preview"><span class="empty">เลือกผลลัพธ์เพื่อดูตัวอย่าง</span></div></div>
+  </div>
+  <div class="row" style="margin-top:10px">
+   <div><label>แสดงภาพซ้อนทับ (Overlay)</label><div id="overlayView" class="preview" style="min-height:100px"><span class="empty">เลือกฟอนต์เพื่อเปรียบเทียบ</span></div></div>
+   <div><label>ข้อมูลผลการวิเคราะห์</label><div id="selectedInfo" class="status">ยังไม่มีฟอนต์ที่เลือก</div></div>
+  </div>
+  <details><summary>วิธีอ่านคะแนนและข้อจำกัดของ DEEP ANALYSIS</summary><p class="small">v1.4 วิเคราะห์หลายคุณลักษณะ ได้แก่ silhouette/IoU, projection แนวนอนและแนวตั้ง, ขอบเส้น (edge map), ปริมาณพื้นที่หมึก และอัตราส่วนภาพ พร้อมเปรียบเทียบ 2 ความละเอียด คะแนนเป็นคะแนนความคล้ายเชิงภาพเพื่อจัดอันดับ ไม่ใช่ความน่าจะเป็นหรือการยืนยันชื่อฟอนต์ ระบบยังไม่แยก glyph รายตัวแบบสมบูรณ์ โดยเฉพาะภาษาไทยที่สระและวรรณยุกต์ซ้อน/แยกตำแหน่งได้ ควรใช้ภาพตัวอย่างที่ตัดเฉพาะข้อความ พื้นหลังเรียบ และข้อความที่กรอกตรงต้นฉบับ</p></details>
+ </section>
+ <section class="panel"><h2>04 / MATCH RANKING</h2><div class="row"><div><label>ค้นหาในฐานข้อมูล</label><input id="filter" type="text" placeholder="กรองชื่อฟอนต์..."></div><div><label>เรียงตาม</label><select id="sort"><option value="score">คะแนนความคล้ายสูงสุด</option><option value="name">ชื่อฟอนต์ A-Z</option><option value="fav">รายการโปรดก่อน</option></select></div></div><div id="results"><div class="status">เพิ่มฟอนต์ในฐานข้อมูลและนำเข้าภาพเพื่อเริ่มค้นหา</div></div></section>
+ <section class="panel"><h2>05 / MATCH DETAIL</h2><div id="detail"><p class="small">เลือกรายการผลลัพธ์เพื่อดูรายละเอียดและเปรียบเทียบ</p></div></section>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const DB='NEXUS_FONT_DB_V12', STORE='fonts'; // ใช้ฐานข้อมูลเดิมเพื่อเก็บฟอนต์จาก v1.2/v1.3 ต่อได้ let db, fonts=[], loaded={}, targetImg=null, targetCanvas=null, ranked=[], selected=null, artUrl=null;
+function status(id,s){$(id).textContent=s}
+function progress(id,pct,title,sub=''){let p=Math.max(0,Math.min(100,Math.round(pct)));$(id).style.display='block';$(id+'Title').textContent=title;$(id+'Pct').textContent=p+'%';$(id+'Fill').style.width=p+'%';$(id+'Sub').textContent=sub;}
+function hideProgress(id){$(id).style.display='none'}
+function paint(){return new Promise(resolve=>requestAnimationFrame(()=>resolve()))}
+function openDB(){return new Promise((resolve,reject)=>{let r=indexedDB.open(DB,1);r.onupgradeneeded=()=>{let d=r.result;if(!d.objectStoreNames.contains(STORE)){let st=d.createObjectStore(STORE,{keyPath:'id'});st.createIndex('name','name',{unique:false})}};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
+function tx(mode){return db.transaction(STORE,mode).objectStore(STORE)}
+function allFonts(){return new Promise((res,rej)=>{let r=tx('readonly').getAll();r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+function saveFont(f){return new Promise((res,rej)=>{let r=tx('readwrite').put(f);r.onsuccess=()=>res();r.onerror=()=>rej(r.error)})}
+function deleteFont(id){return new Promise((res,rej)=>{let r=tx('readwrite').delete(id);r.onsuccess=()=>res();r.onerror=()=>rej(r.error)})}
+function fmt(n){return (n/1048576).toFixed(1)}
+async function refreshDB(){
+ progress('dbProgress',20,'กำลังโหลดฐานข้อมูล...','กำลังอ่านรายการฟอนต์จาก IndexedDB');await paint();
+ fonts=await allFonts();progress('dbProgress',75,'กำลังจัดเตรียมรายการฟอนต์...',`อ่านข้อมูลแล้ว ${fonts.length} รายการ`);await paint();$('dbCount').textContent=fonts.length;$('favCount').textContent=fonts.filter(f=>f.favorite).length;$('dbSize').textContent=fmt(fonts.reduce((s,f)=>s+(f.blob?.size||0),0));
+ $('dbList').innerHTML='';fonts.forEach(f=>{let d=document.createElement('div');d.className='dbitem';let n=document.createElement('span');n.textContent=f.name+' · '+f.fileName;let tag=document.createElement('span');tag.className='tag';tag.textContent=f.favorite?'★':'FONT';d.append(n,tag);$('dbList').append(d)});
+ progress('dbProgress',100,'โหลดฐานข้อมูลเสร็จแล้ว',`${fonts.length} ฟอนต์พร้อมใช้งาน`);status('dbStatus',`ฐานข้อมูลพร้อมใช้งาน: ${fonts.length} ฟอนต์\nเก็บไว้ในเบราว์เซอร์นี้`);
+}
+function fontId(){return 'f_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8)}
+async function addFiles(fileList){
+ let added=0,failed=[],valid=[...fileList].filter(f=>/\.(ttf|otf|woff2?)$/i.test(f.name));
+ if(!valid.length){status('dbStatus','ไม่พบไฟล์ฟอนต์ TTF / OTF / WOFF / WOFF2');return}
+ progress('dbProgress',0,'กำลังนำเข้าฟอนต์...',`เริ่มต้น 0/${valid.length} ไฟล์`);await paint();
+ for(let i=0;i<valid.length;i++){const file=valid[i];
+  try{let id=fontId(),blob=file.slice(0,file.size,file.type||'application/octet-stream');
+   await saveFont({id,name:file.name.replace(/\.[^.]+$/,''),fileName:file.name,mime:file.type,size:file.size,blob,favorite:false,addedAt:new Date().toISOString()});added++;
+  }catch(e){failed.push(file.name+': '+e.message)}
+  progress('dbProgress',((i+1)/valid.length)*100,'กำลังนำเข้าฟอนต์...',`${i+1}/${valid.length} ไฟล์ · เพิ่มสำเร็จ ${added} ไฟล์`);await paint();
+ }
+ await refreshDB();progress('dbProgress',100,'นำเข้าฟอนต์เสร็จแล้ว',`เพิ่มสำเร็จ ${added}/${valid.length} ไฟล์`);status('dbStatus',`เพิ่มฟอนต์ใหม่ ${added} รายการ\n${failed.length?'ไม่สำเร็จ: '+failed.join('\n'):'ฐานข้อมูลบันทึกเรียบร้อย'}`);
+}
+async function loadFace(f){if(loaded[f.id])return loaded[f.id];let url=URL.createObjectURL(f.blob),family='NEXUS_'+f.id.replace(/[^a-z0-9]/gi,'');let face=new FontFace(family,`url(${url})`);await face.load();document.fonts.add(face);loaded[f.id]={family,url,face};return loaded[f.id]}
+$('fontInput').onchange=e=>addFiles(e.target.files);$('folderInput').onchange=e=>addFiles(e.target.files);
+$('threshold').oninput=e=>$('thresholdVal').textContent=e.target.value;
+let imageLoadToken=0;
+$('artInput').addEventListener('change', async e=>{
+ const f=e.target.files && e.target.files[0];
+ if(!f)return;
+ const token=++imageLoadToken;
+ if(!/^image\\/(png|jpeg|webp|svg\\+xml)$/i.test(f.type) && !/\\.(png|jpe?g|webp|svg)$/i.test(f.name)){
+  targetImg=null;targetCanvas=null;
+  status('analysisStatus','ไฟล์นี้ไม่รองรับ กรุณาเลือก PNG, JPG, WebP หรือ SVG');
+  return;
+ }
+ targetImg=null;targetCanvas=null;
+ $('analyzeBtn').disabled=true;
+ status('analysisStatus',`กำลังโหลดภาพ: ${f.name} · ${(f.size/1024).toFixed(0)} KB`);
+ $('artView').innerHTML='<span class="empty">กำลังโหลดภาพ Artwork...</span>';
+ try{
+  const dataUrl=await new Promise((resolve,reject)=>{
+   const reader=new FileReader();
+   reader.onload=()=>resolve(reader.result);
+   reader.onerror=()=>reject(new Error('อ่านไฟล์ภาพไม่สำเร็จ'));
+   reader.readAsDataURL(f);
+  });
+  const img=await new Promise((resolve,reject)=>{
+   const image=new Image();
+   image.onload=()=>resolve(image);
+   image.onerror=()=>reject(new Error('เบราว์เซอร์ไม่สามารถถอดรหัสภาพนี้ได้'));
+   image.src=dataUrl;
+  });
+  if(token!==imageLoadToken)return;
+  targetImg=img;
+  drawReference();
+  status('analysisStatus',`โหลดภาพสำเร็จ: ${f.name} (${img.naturalWidth} × ${img.naturalHeight}) · พร้อมวิเคราะห์`);
+ }catch(err){
+  if(token!==imageLoadToken)return;
+  targetImg=null;
+  $('artView').innerHTML='<span class="empty">ไม่สามารถแสดงภาพได้</span>';
+  status('analysisStatus','โหลดภาพไม่สำเร็จ: '+err.message+' · ลองบันทึกภาพเป็น PNG หรือ JPG แล้วเลือกใหม่');
+ }finally{
+  if(token===imageLoadToken)$('analyzeBtn').disabled=false;
+ }
+});
+function drawReference(){let c=document.createElement('canvas');let scale=Math.min(900/targetImg.naturalWidth,400/targetImg.naturalHeight,1);c.width=Math.round(targetImg.naturalWidth*scale);c.height=Math.round(targetImg.naturalHeight*scale);c.getContext('2d').drawImage(targetImg,0,0,c.width,c.height);$('artView').innerHTML='';$('artView').append(c)}
+function preprocess(img){
+ let w=img.naturalWidth||img.width,h=img.naturalHeight||img.height,scale=Math.min(1200/w,700/h,1);
+ let c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*scale));c.height=Math.max(1,Math.round(h*scale));let x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0,c.width,c.height);
+ let im=x.getImageData(0,0,c.width,c.height),d=im.data,t=+$('threshold').value,inv=$('invert').checked,minX=c.width,minY=c.height,maxX=-1,maxY=-1;
+ for(let i=0;i<d.length;i+=4){let lum=.299*d[i]+.587*d[i+1]+.114*d[i+2],on=inv?lum>t:lum<t;let v=on?0:255;d[i]=d[i+1]=d[i+2]=v;d[i+3]=255;if(on){let p=i/4,xx=p%c.width,yy=Math.floor(p/c.width);minX=Math.min(minX,xx);maxX=Math.max(maxX,xx);minY=Math.min(minY,yy);maxY=Math.max(maxY,yy)}}
+ if(maxX<minX)return null;
+ let pad=Math.round(Math.max(maxX-minX,maxY-minY)*(+$('padding').value/100));minX=Math.max(0,minX-pad);minY=Math.max(0,minY-pad);maxX=Math.min(c.width-1,maxX+pad);maxY=Math.min(c.height-1,maxY+pad);
+ let out=document.createElement('canvas');out.width=maxX-minX+1;out.height=maxY-minY+1;out.getContext('2d').putImageData(x.createImageData(out.width,out.height),0,0);
+ let od=out.getContext('2d').createImageData(out.width,out.height);
+ for(let yy=0;yy<out.height;yy++)for(let xx=0;xx<out.width;xx++){let si=((yy+minY)*c.width+xx+minX)*4,di=(yy*out.width+xx)*4;od.data[di]=od.data[di+1]=od.data[di+2]=d[si];od.data[di+3]=255}
+ out.getContext('2d').putImageData(od,0,0);return out;
+}
+function normalizeMask(src,W=320,H=110){
+ const cv=document.createElement('canvas');cv.width=W;cv.height=H;let c=cv.getContext('2d');c.fillStyle='#fff';c.fillRect(0,0,W,H);
+ let scale=Math.min((W-12)/src.width,(H-12)/src.height),dw=src.width*scale,dh=src.height*scale;c.drawImage(src,(W-dw)/2,(H-dh)/2,dw,dh);
+ let d=c.getImageData(0,0,W,H).data,mask=new Uint8Array(W*H),xs=new Float32Array(W),ys=new Float32Array(H),ink=0;
+ for(let y=0;y<H;y++)for(let x=0;x<W;x++){let i=(y*W+x)*4,on=d[i]<128?1:0;mask[y*W+x]=on;if(on){xs[x]++;ys[y]++;ink++}}
+ return {mask,xs,ys,W,H,ratio:src.width/src.height,ink:ink/(W*H)};
+}
+function projectionSimilarity(p,q){
+ let diff=0,total=0;for(let i=0;i<p.length;i++){diff+=Math.abs(p[i]-q[i]);total+=Math.max(p[i],q[i])}
+ return total?Math.max(0,1-diff/total):1;
+}
+function edgeMask(m){
+ const e=new Uint8Array(m.mask.length),W=m.W,H=m.H;
+ for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){let i=y*W+x,v=m.mask[i];if(v&&(m.mask[i-1]===0||m.mask[i+1]===0||m.mask[i-W]===0||m.mask[i+W]===0))e[i]=1}
+ return e;
+}
+function edgeSimilarity(a,b){
+ const ea=edgeMask(a),eb=edgeMask(b),W=a.W,H=a.H;
+ // tolerant edge matching: allow a one-pixel displacement
+ function directed(src,dst){let hit=0,total=0;for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){let i=y*W+x;if(!src[i])continue;total++;let found=false;for(let dy=-1;dy<=1&&!found;dy++)for(let dx=-1;dx<=1;dx++)if(dst[(y+dy)*W+x+dx]){found=true;break}if(found)hit++}return total?hit/total:1}
+ return (directed(ea,eb)+directed(eb,ea))/2;
+}
+function compareDeep(a,b){
+ let inter=0,uni=0,ma=0,mb=0;
+ for(let i=0;i<a.mask.length;i++){let x=a.mask[i],y=b.mask[i];if(x&&y)inter++;if(x||y)uni++;ma+=x;mb+=y}
+ const iou=uni?inter/uni:1;
+ const projection=(projectionSimilarity(a.xs,b.xs)+projectionSimilarity(a.ys,b.ys))/2;
+ const edge=edgeSimilarity(a,b);
+ const density=1-Math.min(1,Math.abs(a.ink-b.ink)/Math.max(a.ink,b.ink,0.0001));
+ const ratio=Math.min(a.ratio,b.ratio)/Math.max(a.ratio,b.ratio);
+ const score=(iou*.42+projection*.22+edge*.20+density*.06+ratio*.10)*100;
+ return {score:Math.max(0,Math.min(100,score)),metrics:{silhouette:iou*100,projection:projection*100,edge:edge*100,density:density*100,ratio:ratio*100}};
+}
+function renderSample(family,text,size=64){
+ let c=document.createElement('canvas');c.width=1200;c.height=400;let x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.fillStyle='#000';x.textBaseline='middle';x.font=`${size}px "${family}"`;
+ let lines=text.split('\n');lines.forEach((line,i)=>x.fillText(line,20,100+i*120,1160));return c;
+}
+function drawPreview(canvas,container){container.innerHTML='';let c=document.createElement('canvas');let sc=Math.min(700/canvas.width,220/canvas.height,1);c.width=canvas.width*sc;c.height=canvas.height*sc;c.getContext('2d').drawImage(canvas,0,0,c.width,c.height);container.append(c)}
+async function analyze(){
+ if(!targetImg){status('analysisStatus','กรุณานำเข้าภาพ Artwork ก่อน');return}
+ if(!fonts.length){status('analysisStatus','ฐานข้อมูลยังไม่มีฟอนต์ กรุณาเพิ่มไฟล์ TTF/OTF/WOFF');return}
+ let text=$('targetText').value;if(!text.trim()){status('analysisStatus','กรุณาพิมพ์ข้อความใน Artwork ให้ตรงทุกตัว เพื่อให้การเทียบมีความแม่นยำ');return}
+ $('analyzeBtn').disabled=true;ranked=[];selected=null;
+ progress('searchProgress',0,'DEEP ANALYSIS: เตรียมวิเคราะห์','ขั้นที่ 1/4 · ประมวลผลภาพ Artwork');status('analysisStatus','โหมด DEEP ANALYSIS · วิเคราะห์หลายคุณลักษณะและ 2 ความละเอียด');await paint();
+ try{
+  targetCanvas=preprocess(targetImg);if(!targetCanvas)throw Error('ไม่พบส่วนที่เป็นตัวอักษร ลองปรับค่าเกณฑ์แปลงภาพหรือกลับสี');
+  progress('searchProgress',5,'DEEP ANALYSIS: สร้างภาพอ้างอิง','ขั้นที่ 1/4 · สร้าง silhouette และ feature maps');await paint();
+  const targetLow=normalizeMask(targetCanvas,320,110),targetHigh=normalizeMask(targetCanvas,480,165),list=[];
+  const total=fonts.length;
+  for(let i=0;i<total;i++){
+   const f=fonts[i];let stage='โหลดฟอนต์';
+   try{
+    const face=await loadFace(f);
+    stage='เรนเดอร์ตัวอย่าง';
+    const canvas=renderSample(face.family,text,+$('previewSize').value);
+    stage='วิเคราะห์ความละเอียดมาตรฐาน';
+    const low=normalizeMask(canvas,320,110),a=compareDeep(targetLow,low);
+    stage='วิเคราะห์ความละเอียดสูง';
+    const high=normalizeMask(canvas,480,165),b=compareDeep(targetHigh,high);
+    const score=a.score*.45+b.score*.55;
+    const metrics={silhouette:a.metrics.silhouette*.45+b.metrics.silhouette*.55,projection:a.metrics.projection*.45+b.metrics.projection*.55,edge:a.metrics.edge*.45+b.metrics.edge*.55,density:a.metrics.density*.45+b.metrics.density*.55,ratio:a.metrics.ratio*.45+b.metrics.ratio*.55};
+    list.push({font:f,family:face.family,score,metrics,canvas,mask:low});
+   }catch(e){console.warn('Font analysis failed:',f.fileName,e)}
+   const pct=5+((i+1)/total)*93;
+   progress('searchProgress',pct,'DEEP ANALYSIS: กำลังวิเคราะห์ฟอนต์...',`${i+1}/${total} ฟอนต์ · ขั้นตอนล่าสุด: ${stage} · วิเคราะห์สำเร็จ ${list.length} ฟอนต์`);
+   status('analysisStatus',`กำลังวิเคราะห์ฟอนต์ ${i+1}/${total}\nคุณลักษณะ: silhouette · projection · edge · density · aspect ratio\nเปรียบเทียบ 2 ความละเอียด`);
+   await paint();
+  }
+  ranked=list.sort((a,b)=>b.score-a.score);renderResults();
+  progress('searchProgress',100,'DEEP ANALYSIS เสร็จสมบูรณ์',`ตรวจสอบ ${total} ฟอนต์ · วิเคราะห์สำเร็จ ${ranked.length} · ข้าม ${total-ranked.length}`);
+  status('analysisStatus',`วิเคราะห์เชิงลึกเสร็จแล้ว ${ranked.length}/${total} ฟอนต์\nคะแนนเป็นความคล้ายเชิงภาพ ไม่ใช่การยืนยันชนิดฟอนต์`);
+ }catch(e){progress('searchProgress',0,'การวิเคราะห์หยุดลง',e.message);status('analysisStatus','เกิดข้อผิดพลาด: '+e.message)}
+ finally{$('analyzeBtn').disabled=false}
+}
+function renderResults(){
+ let q=$('filter').value.toLowerCase(),arr=ranked.filter(x=>x.font.name.toLowerCase().includes(q));
+ if($('sort').value==='name')arr.sort((a,b)=>a.font.name.localeCompare(b.font.name));else if($('sort').value==='fav')arr.sort((a,b)=>(b.font.favorite?1:0)-(a.font.favorite?1:0)||b.score-a.score);
+ $('results').innerHTML='';arr.forEach((x,i)=>{let el=document.createElement('div');el.className='candidate'+(selected?.font.id===x.font.id?' active':'');let r=document.createElement('div');r.className='rank';r.textContent='#'+(i+1);let mid=document.createElement('div'),name=document.createElement('div');name.className='fname';name.textContent=x.font.name;let meta=document.createElement('div');meta.className='meta';meta.textContent=x.font.fileName+' · '+(x.font.favorite?'★ Favorite':'Database')+' · Deep analysis';let sample=document.createElement('div');sample.className='sample';sample.style.fontFamily='"'+x.family+'"';sample.textContent=$('targetText').value;mid.append(name,meta,sample);let score=document.createElement('div');score.className='score';score.textContent=x.score.toFixed(1)+'%';el.append(r,mid,score);el.onclick=()=>selectCandidate(x);$('results').append(el)});
+ if(!arr.length)$('results').textContent='ไม่พบชื่อฟอนต์ที่ตรงกับคำค้น';
+}
+function selectCandidate(x){
+ selected=x;$('fontView').innerHTML='';let p=document.createElement('div');p.style.cssText=`font-family:"${x.family}";font-size:30px;color:#111;overflow-wrap:anywhere;text-align:center`;p.textContent=$('targetText').value;$('fontView').append(p);
+ let a=document.createElement('canvas');a.width=600;a.height=180;let c=a.getContext('2d');c.fillStyle='#fff';c.fillRect(0,0,600,180);c.drawImage(x.canvas,0,0,600,180);
+ let overlay=document.createElement('canvas');overlay.width=600;overlay.height=180;let o=overlay.getContext('2d');o.globalAlpha=.55;o.drawImage(a,0,0);o.globalAlpha=.45;o.drawImage(x.canvas,0,0,600,180);drawPreview(overlay,$('overlayView'));
+ $('selectedInfo').textContent=`${x.font.name}\nคะแนนความคล้าย: ${x.score.toFixed(2)}%\nไฟล์: ${x.font.fileName}\nขนาด: ${fmt(x.font.size)} MB\nเพิ่มเมื่อ: ${new Date(x.font.addedAt).toLocaleString()}`;
+ $('detail').innerHTML='';let p1=document.createElement('p');p1.textContent='ผลการเปรียบเทียบ: '+x.score.toFixed(2)+'%';let p2=document.createElement('p');p2.className='small';p2.textContent='องค์ประกอบคะแนน: Silhouette '+x.metrics.silhouette.toFixed(1)+'% · Projection '+x.metrics.projection.toFixed(1)+'% · Edge '+x.metrics.edge.toFixed(1)+'% · Ink density '+x.metrics.density.toFixed(1)+'% · Aspect ratio '+x.metrics.ratio.toFixed(1)+'%. เป็นคะแนนเชิงภาพสำหรับจัดอันดับ ไม่ใช่ความน่าจะเป็น';let btn=document.createElement('button');btn.textContent=x.font.favorite?'★ เอาออกจากรายการโปรด':'☆ เพิ่มรายการโปรด';btn.onclick=async()=>{let f=fonts.find(z=>z.id===x.font.id);f.favorite=!f.favorite;await saveFont(f);await refreshDB();x.font=f;btn.textContent=f.favorite?'★ เอาออกจากรายการโปรด':'☆ เพิ่มรายการโปรด';renderResults()};let del=document.createElement('button');del.className='danger';del.textContent='ลบฟอนต์จากฐานข้อมูล';del.onclick=async()=>{if(confirm('ยืนยันลบ '+x.font.fileName+' จากฐานข้อมูล?')){await deleteFont(x.font.id);delete loaded[x.font.id];selected=null;await refreshDB();renderResults();$('detail').textContent='ลบฟอนต์แล้ว'}};$('detail').append(p1,p2,btn,del);renderResults();
+}
+$('analyzeBtn').onclick=analyze;$('filter').oninput=renderResults;$('sort').onchange=renderResults;
+$('resetArt').onclick=()=>{imageLoadToken++;targetImg=null;targetCanvas=null;$('analyzeBtn').disabled=false;$('artInput').value='';$('artView').innerHTML='<span class="empty">ยังไม่ได้เลือกภาพ</span>';status('analysisStatus','ล้างภาพแล้ว')};
+$('exportDb').onclick=async()=>{let data=await allFonts(),out=[];for(let f of data){let buf=await f.blob.arrayBuffer();let bytes=new Uint8Array(buf);let bin='';for(let i=0;i<bytes.length;i+=0x8000)bin+=String.fromCharCode(...bytes.subarray(i,i+0x8000));out.push({...f,blob: btoa(bin)})}let blob=new Blob([JSON.stringify(out)],{type:'application/json'});let a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='NEXUS_FONT_DATABASE_BACKUP.json';a.click();URL.revokeObjectURL(a.href)};
+$('importDb').onclick=()=>$('dbFile').click();$('dbFile').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{progress('dbProgress',5,'กำลังอ่านไฟล์สำรอง...','กำลังเปิดฐานข้อมูล JSON');await paint();let data=JSON.parse(await f.text());for(let i=0;i<data.length;i++){let x=data[i],bin=atob(x.blob),bytes=new Uint8Array(bin.length);for(let j=0;j<bin.length;j++)bytes[j]=bin.charCodeAt(j);x.blob=new Blob([bytes],{type:x.mime||'application/octet-stream'});await saveFont(x);progress('dbProgress',((i+1)/data.length)*100,'กำลังนำเข้าฐานข้อมูล...',`${i+1}/${data.length} ฟอนต์`);await paint()}await refreshDB();progress('dbProgress',100,'นำเข้าฐานข้อมูลเสร็จแล้ว',`${data.length} ฟอนต์`);status('dbStatus','นำเข้าฐานข้อมูลเรียบร้อย')}catch(err){progress('dbProgress',0,'นำเข้าฐานข้อมูลไม่สำเร็จ',err.message);status('dbStatus','นำเข้าไม่สำเร็จ: '+err.message)}};
+(async()=>{try{db=await openDB();await refreshDB()}catch(e){status('dbStatus','เปิดฐานข้อมูลไม่ได้: '+e.message)}})();
+</script></body></html>
